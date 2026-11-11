@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ordens de Serviço</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="marca">
+      <span class="logo" aria-hidden="true">OS</span>
+      <div>
+        <h1>Ordens de Serviço</h1>
+        <p>Balcão da assistência técnica</p>
+      </div>
+    </div>
+    <div class="sessao">
+      <span id="usuario-logado" class="usuario" hidden></span>
+      <button id="btn-entrar" class="btn">Entrar</button>
+      <button id="btn-sair" class="btn btn-leve" hidden>Sair</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="resumo" class="resumo" aria-label="Resumo das ordens"></section>
+
+    <nav class="abas" aria-label="Seções">
+      <button class="aba ativa" data-aba="ordens">Ordens</button>
+      <button class="aba" data-aba="clientes">Clientes e equipamentos</button>
+    </nav>
+
+    <section id="aba-ordens" class="painel">
+      <div class="barra">
+        <div id="filtros" class="filtros" role="group" aria-label="Filtrar por status"></div>
+        <button id="btn-nova-ordem" class="btn">Nova ordem</button>
+      </div>
+      <div class="tabela-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Cliente</th>
+              <th>Equipamento</th>
+              <th>Defeito relatado</th>
+              <th>Status</th>
+              <th>Aberta em</th>
+            </tr>
+          </thead>
+          <tbody id="lista-ordens"></tbody>
+        </table>
+      </div>
+      <p id="ordens-vazio" class="vazio" hidden>Nenhuma ordem com esse filtro.</p>
+    </section>
+
+    <section id="aba-clientes" class="painel" hidden>
+      <div class="grade">
+        <form id="form-cliente" class="cartao">
+          <h2>Novo cliente</h2>
+          <label>Nome <input name="nome" required minlength="2" maxlength="100"></label>
+          <label>Telefone <input name="telefone" required minlength="8" maxlength="20" placeholder="(21) 99999-0000"></label>
+          <label>E-mail <span class="opcional">(opcional)</span> <input name="email" type="email"></label>
+          <p class="erro" hidden></p>
+          <button class="btn">Cadastrar cliente</button>
+        </form>
+
+        <form id="form-equipamento" class="cartao">
+          <h2>Novo equipamento</h2>
+          <label>Cliente <select name="cliente_id" required></select></label>
+          <label>Tipo
+            <select name="tipo" required>
+              <option value="desktop">Desktop</option>
+              <option value="notebook">Notebook</option>
+              <option value="celular">Celular</option>
+              <option value="impressora">Impressora</option>
+              <option value="outro">Outro</option>
+            </select>
+          </label>
+          <div class="lado-a-lado">
+            <label>Marca <input name="marca" required maxlength="60"></label>
+            <label>Modelo <input name="modelo" required maxlength="60"></label>
+          </div>
+          <label>Número de série <span class="opcional">(opcional)</span> <input name="numero_serie" maxlength="60"></label>
+          <p class="erro" hidden></p>
+          <button class="btn">Cadastrar equipamento</button>
+        </form>
+      </div>
+
+      <h2 class="titulo-lista">Clientes</h2>
+      <div id="lista-clientes" class="clientes"></div>
+    </section>
+  </main>
+
+  <dialog id="dlg-login">
+    <form id="form-login" method="dialog">
+      <h2>Entrar</h2>
+      <p class="dica">Para cadastrar ou alterar alguma coisa é preciso estar logado. Consultar é livre.</p>
+      <label>Usuário <input name="usuario" required autocomplete="username"></label>
+      <label>Senha <input name="senha" type="password" required autocomplete="current-password"></label>
+      <p class="erro" hidden></p>
+      <div class="acoes">
+        <button type="button" class="btn btn-leve" data-fechar>Cancelar</button>
+        <button class="btn">Entrar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-nova-ordem">
+    <form id="form-ordem" method="dialog">
+      <h2>Nova ordem de serviço</h2>
+      <label>Equipamento <select name="equipamento_id" required></select></label>
+      <label>Defeito relatado pelo cliente
+        <textarea name="defeito_relatado" required minlength="5" maxlength="500" rows="3"></textarea>
+      </label>
+      <p class="erro" hidden></p>
+      <div class="acoes">
+        <button type="button" class="btn btn-leve" data-fechar>Cancelar</button>
+        <button class="btn">Abrir ordem</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-ordem" class="dlg-largo">
+    <div id="detalhe-ordem"></div>
+  </dialog>
+
+  <div id="aviso" class="aviso" role="status" hidden></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,16 +1,3 @@
-import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
-
-
-@pytest.fixture
-def client(tmp_path, monkeypatch):
-    monkeypatch.setenv("OS_DB", str(tmp_path / "teste.db"))
-    with TestClient(app) as c:
-        yield c
-
-
 def novo_cliente(client, email="ana@exemplo.com"):
     r = client.post("/clientes", json={"nome": "Ana Souza", "telefone": "21999990000", "email": email})
     assert r.status_code == 201
@@ -69,6 +56,7 @@ def test_transicao_invalida_retorna_409(client):
     ordem = nova_ordem(client, novo_equipamento(client, novo_cliente(client)["id"])["id"])
     r = client.patch(f"/ordens/{ordem['id']}/status", json={"status": "concluida"})
     assert r.status_code == 409
+    assert r.json()["detail"]["permitidos"] == ["cancelada", "em_analise"]
 
 
 def test_ordem_encerrada_nao_pode_ser_alterada(client):
@@ -96,3 +84,10 @@ def test_resumo_soma_apenas_ordens_concluidas(client):
     resumo = client.get("/relatorios/resumo").json()
     assert resumo["valor_concluidas"] == 150
     assert resumo["ordens_por_status"] == {"concluida": 1, "aberta": 1}
+
+
+def test_tela_web_e_servida(client):
+    r = client.get("/")
+    assert r.status_code == 200
+    assert "Ordens de Serviço" in r.text
+    assert client.get("/static/app.js").status_code == 200

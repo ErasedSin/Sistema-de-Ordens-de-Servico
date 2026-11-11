@@ -36,7 +36,22 @@ CREATE TABLE IF NOT EXISTS historico_status (
   alterado_em TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS usuarios (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario TEXT NOT NULL UNIQUE,
+  senha_hash TEXT NOT NULL,
+  criado_em TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS sessoes (
+  token TEXT PRIMARY KEY,
+  usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+  expira_em TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_equipamentos_cliente ON equipamentos(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_ordens_equipamento ON ordens_servico(equipamento_id);
 CREATE INDEX IF NOT EXISTS idx_ordens_status ON ordens_servico(status);
 CREATE INDEX IF NOT EXISTS idx_historico_ordem ON historico_status(ordem_id);
+CREATE INDEX IF NOT EXISTS idx_sessoes_usuario ON sessoes(usuario_id);

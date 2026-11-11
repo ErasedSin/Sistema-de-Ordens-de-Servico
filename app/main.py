@@ -1,10 +1,15 @@
 import sqlite3
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Literal, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Response
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from app.auth import router as rotas_login
+from app.auth import usuario_atual
 from app.database import get_db, init_db
 
 Tipo = Literal["desktop", "notebook", "celular", "impressora", "outro"]
@@ -20,6 +25,10 @@ TRANSICOES = {
 
 EMAIL = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
+STATIC = Path(__file__).with_name("static")
+
+PROTEGIDA = [Depends(usuario_atual)]
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -28,6 +37,13 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Sistema de Ordens de Serviço", lifespan=lifespan)
+app.mount("/static", StaticFiles(directory=STATIC), name="static")
+app.include_router(rotas_login)
+
+
+@app.get("/", include_in_schema=False)
+def tela_inicial():
+    return FileResponse(STATIC / "index.html")
 
 
 class ClienteIn(BaseModel):
@@ -106,7 +122,7 @@ def detalhe_ordem(db, ordem_id):
     return ordem
 
 
-@app.post("/clientes", response_model=Cliente, status_code=201)
+@app.post("/clientes", response_model=Cliente, status_code=201, dependencies=PROTEGIDA)
 def criar_cliente(dados: ClienteIn, db: sqlite3.Connection = Depends(get_db)):
     try:
         with db:
@@ -133,7 +149,7 @@ def obter_cliente(cliente_id: int, db: sqlite3.Connection = Depends(get_db)):
     return um(db, "SELECT * FROM clientes WHERE id = ?", (cliente_id,), "Cliente não encontrado")
 
 
-@app.put("/clientes/{cliente_id}", response_model=Cliente)
+@app.put("/clientes/{cliente_id}", response_model=Cliente, dependencies=PROTEGIDA)
 def atualizar_cliente(cliente_id: int, dados: ClienteIn, db: sqlite3.Connection = Depends(get_db)):
     um(db, "SELECT id FROM clientes WHERE id = ?", (cliente_id,), "Cliente não encontrado")
     try:
@@ -147,7 +163,7 @@ def atualizar_cliente(cliente_id: int, dados: ClienteIn, db: sqlite3.Connection 
     return um(db, "SELECT * FROM clientes WHERE id = ?", (cliente_id,), "Cliente não encontrado")
 
 
-@app.delete("/clientes/{cliente_id}", status_code=204)
+@app.delete("/clientes/{cliente_id}", status_code=204, dependencies=PROTEGIDA)
 def remover_cliente(cliente_id: int, db: sqlite3.Connection = Depends(get_db)):
     um(db, "SELECT id FROM clientes WHERE id = ?", (cliente_id,), "Cliente não encontrado")
     try:
@@ -158,7 +174,7 @@ def remover_cliente(cliente_id: int, db: sqlite3.Connection = Depends(get_db)):
     return Response(status_code=204)
 
 
-@app.post("/equipamentos", response_model=Equipamento, status_code=201)
+@app.post("/equipamentos", response_model=Equipamento, status_code=201, dependencies=PROTEGIDA)
 def criar_equipamento(dados: EquipamentoIn, db: sqlite3.Connection = Depends(get_db)):
     um(db, "SELECT id FROM clientes WHERE id = ?", (dados.cliente_id,), "Cliente não encontrado")
     with db:
@@ -183,7 +199,7 @@ def obter_equipamento(equipamento_id: int, db: sqlite3.Connection = Depends(get_
     return um(db, "SELECT * FROM equipamentos WHERE id = ?", (equipamento_id,), "Equipamento não encontrado")
 
 
-@app.post("/ordens", response_model=OrdemDetalhe, status_code=201)
+@app.post("/ordens", response_model=OrdemDetalhe, status_code=201, dependencies=PROTEGIDA)
 def abrir_ordem(dados: OrdemIn, db: sqlite3.Connection = Depends(get_db)):
     um(db, "SELECT id FROM equipamentos WHERE id = ?", (dados.equipamento_id,), "Equipamento não encontrado")
     with db:
@@ -212,7 +228,7 @@ def obter_ordem(ordem_id: int, db: sqlite3.Connection = Depends(get_db)):
     return detalhe_ordem(db, ordem_id)
 
 
-@app.patch("/ordens/{ordem_id}", response_model=OrdemDetalhe)
+@app.patch("/ordens/{ordem_id}", response_model=OrdemDetalhe, dependencies=PROTEGIDA)
 def atualizar_ordem(ordem_id: int, dados: OrdemUpdate, db: sqlite3.Connection = Depends(get_db)):
     ordem = um(db, "SELECT * FROM ordens_servico WHERE id = ?", (ordem_id,), "Ordem não encontrada")
     if ordem["status"] in ("concluida", "cancelada"):
@@ -225,14 +241,18 @@ def atualizar_ordem(ordem_id: int, dados: OrdemUpdate, db: sqlite3.Connection = 
     return detalhe_ordem(db, ordem_id)
 
 
-@app.patch("/ordens/{ordem_id}/status", response_model=OrdemDetalhe)
+@app.patch("/ordens/{ordem_id}/status", response_model=OrdemDetalhe, dependencies=PROTEGIDA)
 def mudar_status(ordem_id: int, dados: StatusIn, db: sqlite3.Connection = Depends(get_db)):
     ordem = um(db, "SELECT * FROM ordens_servico WHERE id = ?", (ordem_id,), "Ordem não encontrada")
     permitidos = TRANSICOES[ordem["status"]]
     if dados.status not in permitidos:
         raise HTTPException(
             409,
-            f"Não é possível ir de {ordem['status']} para {dados.status}. Permitidos: {sorted(permitidos) or 'nenhum'}",
+            {
+                "mensagem": f"Não é possível ir de {ordem['status']} para {dados.status}",
+                "status_atual": ordem["status"],
+                "permitidos": sorted(permitidos),
+            },
         )
     with db:
         db.execute(
